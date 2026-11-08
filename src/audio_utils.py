@@ -1,7 +1,6 @@
 import numpy as np
 import librosa
 import joblib
-import pandas as pd
 
 from pathlib import Path
 from functools import lru_cache
@@ -92,9 +91,9 @@ def verify_voice(audio_path, expected_member_id):
 
     features = extract_audio_features(audio_path)
 
-    X = pd.DataFrame(
-        [features],
-        columns=feature_columns
+    X = np.asarray(
+        [[features[column] for column in feature_columns]],
+        dtype=float
     )
 
     prediction = model.predict(X)[0]
