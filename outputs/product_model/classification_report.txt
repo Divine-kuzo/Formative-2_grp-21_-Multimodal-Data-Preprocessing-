@@ -1,0 +1,11 @@
+              precision    recall  f1-score   support
+
+       Books       0.00      0.00      0.00         4
+    Clothing       0.33      1.00      0.50         1
+ Electronics       0.25      0.50      0.33         4
+   Groceries       0.00      0.00      0.00         3
+      Sports       0.43      0.43      0.43         7
+
+    accuracy                           0.32        19
+   macro avg       0.20      0.39      0.25        19
+weighted avg       0.23      0.32      0.25        19

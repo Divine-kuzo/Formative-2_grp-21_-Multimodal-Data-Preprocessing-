@@ -1,0 +1,16 @@
+time,face_file,voice_file,face_label,face_conf,voice_label,voice_conf,customer_id,product,outcome
+2026-11-08T15:00:17,samples/member_01_neutral.jpg,samples/member_01_yes_approve.wav,member_01,0.95,member_01,0.95,A104,Sports,APPROVED
+2026-11-08T15:00:17,samples/unknown_face.jpg,samples/member_01_yes_approve.wav,unknown,0.20,,,,,DENIED_FACE
+2026-11-08T15:00:17,samples/member_02_smiling.jpg,samples/member_03_confirm_transaction.wav,member_02,0.95,member_03,0.95,,,DENIED_VOICE
+2026-11-08T15:00:17,samples/member_04_surprised.jpg,samples/unknown_voice.wav,member_04,0.95,unknown,0.20,,,DENIED_VOICE
+2026-11-08T15:08:31,samples/member_01_x.jpg,audio/member_01/yes_approve.wav,member_01,0.95,,,,,ERROR
+2026-11-08T15:24:17,samples/member_01_x.jpg,audio/member_01/yes_approve.wav,member_01,0.95,member_01,0.68,A104,Sports,APPROVED
+2026-11-08T15:25:40,samples/member_02_x.jpg,audio/member_01/yes_approve.wav,member_02,0.95,member_01,0.68,,,DENIED_VOICE
+2026-11-08T15:29:54,samples/member_01_neutral.jpg,samples/member_01_yes_approve.wav,member_01,0.95,,,,,ERROR
+2026-11-08T15:29:54,samples/unknown_face.jpg,samples/member_01_yes_approve.wav,unknown,0.20,,,,,DENIED_FACE
+2026-11-08T15:29:54,samples/member_02_smiling.jpg,samples/member_03_confirm_transaction.wav,member_02,0.95,,,,,ERROR
+2026-11-08T15:29:54,samples/member_04_surprised.jpg,samples/unknown_voice.wav,member_04,0.95,,,,,ERROR
+2026-11-08T15:42:45,samples/member_01_neutral.jpg,audio/member_01/yes_approve.wav,member_01,0.95,member_01,0.68,A104,Sports,APPROVED
+2026-11-08T15:42:45,samples/unknown_face.jpg,audio/member_01/yes_approve.wav,unknown,0.20,,,,,DENIED_FACE
+2026-11-08T15:42:45,samples/member_02_smiling.jpg,audio/member_03/confirm_transaction.wav,member_02,0.95,member_03,0.77,,,DENIED_VOICE
+2026-11-08T15:42:45,samples/member_04_surprised.jpg,samples/unknown_voice.wav,member_04,0.95,,,,,ERROR
