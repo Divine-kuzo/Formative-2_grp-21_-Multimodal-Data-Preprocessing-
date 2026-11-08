@@ -6,26 +6,24 @@ import pandas as pd
 from pathlib import Path
 from functools import lru_cache
 
-
-# Project directories
 BASE_DIR = Path(__file__).resolve().parents[1]
 MODEL_DIR = BASE_DIR / "models"
-
-SAMPLE_RATE = 22050
 
 
 def extract_audio_features(audio_path):
     """
-    Extract the same 15 audio features used during model training.
+    Extract the same 15 audio features used during Colab training.
+    Preserve the original recording sample rate.
     """
-
     audio, sr = librosa.load(
         audio_path,
-        sr=SAMPLE_RATE,
+        sr=None,
         mono=True
     )
 
-    # MFCC features
+    if audio.size == 0:
+        raise ValueError("Audio file is empty.")
+
     mfcc = librosa.feature.mfcc(
         y=audio,
         sr=sr,
@@ -34,7 +32,6 @@ def extract_audio_features(audio_path):
 
     mfcc_mean = np.mean(mfcc, axis=1)
 
-    # Spectral rolloff
     rolloff = librosa.feature.spectral_rolloff(
         y=audio,
         sr=sr
@@ -42,14 +39,9 @@ def extract_audio_features(audio_path):
 
     rolloff_mean = np.mean(rolloff)
 
-    # RMS energy
-    rms = librosa.feature.rms(
-        y=audio
-    )
-
+    rms = librosa.feature.rms(y=audio)
     rms_mean = np.mean(rms)
 
-    # Combine features
     features = {}
 
     for i, value in enumerate(mfcc_mean):
@@ -64,22 +56,23 @@ def extract_audio_features(audio_path):
 @lru_cache(maxsize=1)
 def load_voice_artifacts():
     """
-    Load the trained voice model and supporting artifacts.
+    Load the new model and its feature column order.
     """
+    model_path = MODEL_DIR / "voice_model.pkl"
+    columns_path = MODEL_DIR / "voice_feature_columns.pkl"
 
-    model = joblib.load(
-        MODEL_DIR / "voice_model.pkl"
-    )
+    if not model_path.is_file():
+        raise FileNotFoundError(f"Model not found: {model_path}")
 
-    encoder = joblib.load(
-        MODEL_DIR / "voice_label_encoder.pkl"
-    )
+    if not columns_path.is_file():
+        raise FileNotFoundError(
+            f"Feature columns not found: {columns_path}"
+        )
 
-    feature_columns = joblib.load(
-        MODEL_DIR / "voice_feature_columns.pkl"
-    )
+    model = joblib.load(model_path)
+    feature_columns = joblib.load(columns_path)
 
-    return model, encoder, feature_columns
+    return model, feature_columns
 
 
 def verify_voice(audio_path, expected_member_id):
@@ -88,7 +81,6 @@ def verify_voice(audio_path, expected_member_id):
 
     Returns a dictionary containing the verification result.
     """
-
     audio_path = Path(audio_path)
 
     if not audio_path.is_file():
@@ -96,27 +88,23 @@ def verify_voice(audio_path, expected_member_id):
             f"Audio file not found: {audio_path}"
         )
 
-    model, encoder, feature_columns = load_voice_artifacts()
+    model, feature_columns = load_voice_artifacts()
 
-    # Extract features
     features = extract_audio_features(audio_path)
 
-    # Arrange features in the exact training order
-    X = pd.DataFrame([features])
-    X = X[feature_columns]
+    X = pd.DataFrame(
+        [features],
+        columns=feature_columns
+    )
 
-    # Predict speaker
     prediction = model.predict(X)[0]
 
-    predicted_member = encoder.inverse_transform(
-        [prediction]
-    )[0]
+    predicted_member = str(prediction)
 
-    # Compare predicted and expected identities
-    verified = str(predicted_member) == str(expected_member_id)
+    verified = predicted_member == str(expected_member_id)
 
     return {
         "verified": bool(verified),
-        "predicted_member_id": str(predicted_member),
+        "predicted_member_id": predicted_member,
         "expected_member_id": str(expected_member_id)
     }
