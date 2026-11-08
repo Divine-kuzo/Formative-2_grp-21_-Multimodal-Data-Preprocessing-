@@ -1,0 +1,23 @@
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Private voice recordings
+audio/
+
+# Extracted voice features
+data/
+
+# Trained voice model artifacts
+models/
+
+# Old generated package
+voice_verification_package.zip
+
+# Environment variables
+.env
+
+# Notebook temporary files
+.ipynb_checkpoints/
