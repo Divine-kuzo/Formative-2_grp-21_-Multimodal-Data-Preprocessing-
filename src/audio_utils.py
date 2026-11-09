@@ -16,7 +16,7 @@ def extract_audio_features(audio_path):
     """
     audio, sr = librosa.load(
         audio_path,
-        sr=None,
+        sr=22050,
         mono=True
     )
 
