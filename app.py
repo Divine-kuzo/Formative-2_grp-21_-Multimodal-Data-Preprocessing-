@@ -36,7 +36,7 @@ sys.path.insert(0, str(ROOT))  # so "from src.xxx import ..." works from anywher
 
 # CONFIG  (edit this section)
 FACE_BACKEND = "placeholder"    # "placeholder" | "real"
-VOICE_BACKEND = "member3"   # "placeholder" | "fallback" | "member3"
+VOICE_BACKEND = "fallback"   # "placeholder" | "fallback" | "member3"
 
 FACE_THRESHOLD = 0.60           # minimum confidence to accept a face
 VOICE_THRESHOLD = 0.60          # minimum confidence to accept a voice
@@ -60,9 +60,9 @@ MEMBERS = {
 # (the files don't have to exist). With real backends, point these at real files.
 DEMO_SCENARIOS = [
     {"title": "1. Authorised user - full transaction",
-     "face": "samples/member_01_neutral.jpg", "voice": "audio/member_01/yes_approve.wav"},
+     "face": "samples/member_01_neutral.jpg", "voice": "audio/member_01/confirm_transaction.wav"},
     {"title": "2. Unauthorised face (stranger)",
-     "face": "samples/unknown_face.jpg", "voice": "audio/member_01/yes_approve.wav"},
+     "face": "samples/unknown_face.jpg", "voice": "audio/member_01/confirm_transaction.wav"},
     {"title": "3. Authorised face, but someone else's voice",
      "face": "samples/member_02_smiling.jpg", "voice": "audio/member_03/confirm_transaction.wav"},
     {"title": "4. Authorised face, unauthorised voice (stranger)",
@@ -70,6 +70,7 @@ DEMO_SCENARIOS = [
 ]
 
 LOG_PATH = ROOT / "outputs" / "simulation_log.csv"
+
 
 # Helpers: matching model labels to team members
 def resolve_member(label):
@@ -88,7 +89,9 @@ def display_name(key):
     return MEMBERS[key]["name"] if key in MEMBERS else "unknown"
 
 
+# ==========================================================================
 # FACE backend
+# ==========================================================================
 def _placeholder_face(image_path):
     """
     PLACEHOLDER - does NOT look at the image. It guesses the person from the FILE NAME:
@@ -123,24 +126,83 @@ def _placeholder_voice(audio_path):
     return "unknown", 0.20
 
 
+def _split_voice_artifacts(artifacts):
+    """
+    Member 3's load_voice_artifacts() has changed shape before (3 values, then 2).
+    Recognise each item by what it is instead of by position:
+      model   = has predict() (a sklearn model or Pipeline)
+      encoder = has inverse_transform but no predict (a LabelEncoder), optional
+      columns = a list of feature names (falls back to model.feature_names_in_)
+    Returns (model, encoder_or_None, columns).
+    """
+    items = list(artifacts.values()) if isinstance(artifacts, dict) else (
+        list(artifacts) if isinstance(artifacts, (tuple, list)) else [artifacts])
+    model = encoder = columns = None
+    for it in items:
+        if isinstance(it, (list, tuple)):
+            columns = list(it)
+        elif hasattr(it, "predict"):
+            model = it
+        elif hasattr(it, "inverse_transform"):
+            encoder = it
+        elif hasattr(it, "tolist"):
+            columns = list(it)
+    if model is None:
+        raise RuntimeError("load_voice_artifacts() did not return a model with predict().")
+    if columns is None:
+        columns = list(getattr(model, "feature_names_in_", []))
+        if not columns:
+            raise RuntimeError("Could not find the voice feature column names.")
+    return model, encoder, columns
+
+
+def _confidences(model, X):
+    """
+    Return (classes, scores) where scores sum to 1.
+    Uses predict_proba when the model has it. Models without it (e.g. an SVM trained
+    without probability=True) fall back to a softmax of decision_function, which is a
+    RELATIVE score, not a calibrated probability. Last resort: predict() with 1.0.
+    """
+    import numpy as np
+    classes = getattr(model, "classes_", None)
+    if hasattr(model, "predict_proba"):
+        return classes, model.predict_proba(X)[0]
+    if hasattr(model, "decision_function"):
+        d = np.atleast_1d(model.decision_function(X)[0]).astype(float)
+        if d.size == 1:                       # binary case
+            d = np.array([-d[0], d[0]])
+        e = np.exp(d - d.max())
+        return classes, e / e.sum()
+    pred = model.predict(X)[0]
+    return [pred], np.array([1.0])
+
+
 def _member3_voice(audio_path):
     """
     Adapter for Member 3's code (src/audio_utils.py + models/voice_model.pkl).
     Their verify_voice() only returns verified True/False with no confidence, so this
-    reuses THEIR feature extraction and THEIR trained model but calls predict_proba to
-    get a confidence score. None of Member 3's files are modified.
+    reuses THEIR feature extraction and THEIR trained model and works out a confidence
+    score itself. None of Member 3's files are modified.
     """
-    import pandas as pd
+    import numpy as np
     from src.audio_utils import extract_audio_features, load_voice_artifacts
 
     if not Path(audio_path).is_file():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
-    model, encoder, feature_columns = load_voice_artifacts()
-    X = pd.DataFrame([extract_audio_features(audio_path)])[feature_columns]
-    proba = model.predict_proba(X)[0]
-    i = int(proba.argmax())
-    label = encoder.inverse_transform([model.classes_[i]])[0]
-    return str(label), float(proba[i])
+    model, encoder, columns = _split_voice_artifacts(load_voice_artifacts())
+    feats = extract_audio_features(audio_path)
+    X = np.asarray([[feats[c] for c in columns]], dtype=float)   # same as Member 3's verify_voice
+    classes, scores = _confidences(model, X)
+    # Use the SAME answer as Member 3's verify_voice (model.predict) and report that
+    # class's score as the confidence. (With very little data, an SVM's predict() and
+    # predict_proba() can disagree, so we don't take the argmax of the scores.)
+    cls = model.predict(X)[0]
+    if classes is not None and cls in list(classes):
+        i = list(classes).index(cls)
+    else:
+        i = int(np.argmax(scores))
+    label = encoder.inverse_transform([cls])[0] if encoder is not None else cls
+    return str(label), float(scores[i])
 
 
 def predict_voice_backend(audio_path):
@@ -174,7 +236,7 @@ def run_transaction(face_path, voice_path):
               "customer_id": "", "product": "", "outcome": ""}
     line("-" * 60)
 
-    # Step 1: face 
+    # ---- Step 1: face -------------------------------------------------------
     line("[Step 1/3] Face verification ...")
     try:
         _require_file(face_path, "face")
@@ -192,7 +254,7 @@ def run_transaction(face_path, voice_path):
         return result
     line(f"   Face recognised: {display_name(f_key)} (confidence {f_conf:.0%})")
 
-    # Step 2: voice 
+    # ---- Step 2: voice ------------------------------------------------------
     line("[Step 2/3] Voice verification (phrase: 'Yes, approve' / 'Confirm transaction') ...")
     try:
         _require_file(voice_path, "voice")
@@ -215,7 +277,7 @@ def run_transaction(face_path, voice_path):
         return result
     line(f"   Voice approved: {display_name(v_key)} (confidence {v_conf:.0%})")
 
-    # Step 3: product prediction
+    # ---- Step 3: product prediction ----------------------------------------
     line("[Step 3/3] Both checks passed - running product recommendation ...")
     try:
         from src.product_model import predict_product

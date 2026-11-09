@@ -25,7 +25,7 @@ SAMPLES_DIR = ROOT / "samples"
 
 
 def score(path):
-    label, conf = app._member3_voice(path)
+    label, conf = app.predict_voice_backend(path)   # whichever VOICE_BACKEND is set in app.py
     return label, conf
 
 
