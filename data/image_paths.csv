@@ -1,0 +1,14 @@
+member,expression,role,path
+member_01,neutral,authorized,images/member_01/member_01_neutral.jpg
+member_01,smile,authorized,images/member_01/member_01_smile.jpg
+member_01,surprised,authorized,images/member_01/member_01_surprised.jpg
+member_02,neutral,authorized,images/member_02/member_02_neutral.jpg
+member_02,smile,authorized,images/member_02/member_02_smile.jpg
+member_02,surprised,authorized,images/member_02/member_02_surprised.jpg
+member_03,neutral,authorized,images/member_03/member_03_neutral.jpg
+member_03,smile,authorized,images/member_03/member_03_smile.jpg
+member_03,surprised,authorized,images/member_03/member_03_surprised.jpg
+member_04,neutral,authorized,images/member_04/member_04_neutral.jpg
+member_04,smile,authorized,images/member_04/member_04_smile.jpg
+member_04,surprised,authorized,images/member_04/member_04_surprised.jpg
+unknown,neutral,unauthorized,images/unknown/non_member_1.jpg
