@@ -35,8 +35,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))  # so "from src.xxx import ..." works from anywhere
 
 # CONFIG  (edit this section)
-FACE_BACKEND = "placeholder"    # "placeholder" | "real"
-VOICE_BACKEND = "fallback"   # "placeholder" | "fallback" | "member3"
+FACE_BACKEND = "real"    # "placeholder" | "real"
+VOICE_BACKEND = "auto"          # "auto" | "member3" | "fallback" | "placeholder"
 
 FACE_THRESHOLD = 0.60           # minimum confidence to accept a face
 VOICE_THRESHOLD = 0.60          # minimum confidence to accept a voice
@@ -60,13 +60,13 @@ MEMBERS = {
 # (the files don't have to exist). With real backends, point these at real files.
 DEMO_SCENARIOS = [
     {"title": "1. Authorised user - full transaction",
-     "face": "samples/member_01_neutral.jpg", "voice": "audio/member_01/confirm_transaction.wav"},
+     "face": "images/member_01/member_01_neutral.jpg", "voice": "audio/member_01/confirm_transaction.wav"},
     {"title": "2. Unauthorised face (stranger)",
-     "face": "samples/unknown_face.jpg", "voice": "audio/member_01/confirm_transaction.wav"},
+     "face": "images/unknown/non_member_1.png", "voice": "audio/member_01/confirm_transaction.wav"},
     {"title": "3. Authorised face, but someone else's voice",
-     "face": "samples/member_02_smiling.jpg", "voice": "audio/member_03/confirm_transaction.wav"},
+     "face": "images/member_02/member_02_neutral.jpg", "voice": "audio/member_03/confirm_transaction.wav"},
     {"title": "4. Authorised face, unauthorised voice (stranger)",
-     "face": "samples/member_04_surprised.jpg", "voice": "samples/unknown_voice.wav"},
+     "face": "images/member_04/member_04_surprised.jpg", "voice": "samples/unknown_voice.wav"},
 ]
 
 LOG_PATH = ROOT / "outputs" / "simulation_log.csv"
@@ -106,12 +106,41 @@ def _placeholder_face(image_path):
     return "unknown", 0.20
 
 
+def _normalize_face_result(res):
+    """
+    Turn whatever Member 2's predict_face() returns into (label, confidence).
+    Accepts: (label, confidence) | (label, confidence, ...) | a dict | just a label.
+    """
+    if isinstance(res, dict):
+        low = {str(k).lower(): v for k, v in res.items()}
+        label = next((low[k] for k in ("label", "member_id", "member", "name", "predicted",
+                                       "prediction", "identity", "person") if k in low), None)
+        conf = next((low[k] for k in ("confidence", "probability", "proba", "prob", "score")
+                     if k in low), None)
+    elif isinstance(res, (tuple, list)):
+        label = next((x for x in res if isinstance(x, str)), None)
+        nums = [x for x in res if isinstance(x, (int, float)) and not isinstance(x, bool)]
+        conf = nums[0] if nums else None
+    else:
+        label, conf = res, None
+    if label is None or str(label).strip().lower() in ("", "none", "unknown", "unauthorized",
+                                                        "unauthorised", "non_member", "non-member"):
+        return "unknown", float(conf) if conf is not None else 0.0
+    return str(label), float(conf) if conf is not None else 1.0
+
+
+def _member2_face(image_path):
+    """Adapter for Member 2's code: src/image_utils.py -> predict_face(image_path)."""
+    from src.image_utils import predict_face
+    if not Path(image_path).is_file():
+        raise FileNotFoundError(f"face file not found: {image_path}")
+    return _normalize_face_result(predict_face(str(image_path)))
+
+
 def predict_face_backend(image_path):
     """Returns (label, confidence)."""
     if FACE_BACKEND == "real":
-        # Member 2's file must provide:  predict_face(image_path) -> (label, confidence)
-        from src.face_model import predict_face
-        return predict_face(str(image_path))
+        return _member2_face(image_path)
     return _placeholder_face(image_path)
 
 
@@ -205,14 +234,80 @@ def _member3_voice(audio_path):
     return str(label), float(scores[i])
 
 
-def predict_voice_backend(audio_path):
-    """Returns (label, confidence)."""
-    if VOICE_BACKEND == "fallback":
+AUDIO_DIR = ROOT / "audio"
+STRANGER_VOICE = ROOT / "samples" / "unknown_voice.wav"
+MIN_GENUINE_SHARE = 0.85        # share of the recordings in audio/ a voice model must accept
+_VOICE_CHOICE = None
+
+
+def _run_voice_backend(backend, audio_path):
+    """Run ONE named voice backend. Returns (label, confidence)."""
+    if backend == "fallback":
         from src.voice_fallback import predict_voice
         return predict_voice(str(audio_path))
-    if VOICE_BACKEND == "member3":
+    if backend == "member3":
         return _member3_voice(audio_path)
     return _placeholder_voice(audio_path)
+
+
+def _selftest_voice(backend):
+    """
+    Check a voice backend against the recordings in audio/<member_id>/ (and the stranger clip).
+    Returns dict: accepted, total, stranger_ok (True/False/None), error (first error or "").
+    """
+    res = {"accepted": 0, "total": 0, "stranger_ok": None, "error": ""}
+    if AUDIO_DIR.exists():
+        for folder in sorted(d for d in AUDIO_DIR.iterdir() if d.is_dir()):
+            for wav in sorted(folder.glob("*.wav")):
+                res["total"] += 1
+                try:
+                    label, conf = _run_voice_backend(backend, wav)
+                    if resolve_member(label) == resolve_member(folder.name) and conf >= VOICE_THRESHOLD:
+                        res["accepted"] += 1
+                except Exception as e:
+                    res["error"] = res["error"] or f"{type(e).__name__}: {e}"
+    if STRANGER_VOICE.exists():
+        try:
+            label, conf = _run_voice_backend(backend, STRANGER_VOICE)
+            res["stranger_ok"] = resolve_member(label) is None or conf < VOICE_THRESHOLD
+        except Exception as e:
+            res["error"] = res["error"] or f"{type(e).__name__}: {e}"
+    return res
+
+
+def _choose_voice_backend():
+    """VOICE_BACKEND = "auto": pick the first backend that passes the self-test. Cached."""
+    global _VOICE_CHOICE
+    if _VOICE_CHOICE is not None:
+        return _VOICE_CHOICE
+    results = {}
+    for backend in ("member3", "fallback"):
+        results[backend] = _selftest_voice(backend)
+    def passes(r):
+        return (r["total"] > 0 and r["accepted"] >= MIN_GENUINE_SHARE * r["total"]
+                and r["stranger_ok"] is not False)
+    chosen = next((b for b in ("member3", "fallback") if passes(results[b])), None)
+    line("[voice] self-test on the recordings in audio/:")
+    for b, r in results.items():
+        stranger = {True: "stranger rejected", False: "STRANGER ACCEPTED", None: "no stranger clip yet"}[r["stranger_ok"]]
+        extra = f"  ({r['error']})" if r["error"] and not r["accepted"] else ""
+        line(f"   {b:<9} {r['accepted']}/{r['total']} accepted, {stranger}{extra}")
+    if chosen is None:
+        chosen = max(results, key=lambda b: (results[b]["stranger_ok"] is not False, results[b]["accepted"]))
+        line(f"[voice] WARNING: no voice model passed. Using '{chosen}' anyway. "
+             "Train mine with: python src/voice_fallback.py --from-audio")
+    else:
+        line(f"[voice] using: {chosen}")
+    _VOICE_CHOICE = chosen
+    return chosen
+
+
+def predict_voice_backend(audio_path):
+    """Returns (label, confidence)."""
+    backend = VOICE_BACKEND
+    if backend == "auto":
+        backend = _choose_voice_backend()
+    return _run_voice_backend(backend, audio_path)
 
 
 def _require_file(path, kind):
@@ -311,6 +406,8 @@ def banner():
     line(" USER IDENTITY & PRODUCT RECOMMENDATION SYSTEM")
     line(f" face backend: {FACE_BACKEND} | voice backend: {VOICE_BACKEND}")
     line("=" * 60)
+    if VOICE_BACKEND == "auto":
+        _choose_voice_backend()
 
 
 def run_demo():

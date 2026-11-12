@@ -1,0 +1,5 @@
+,accuracy,f1_weighted,log_loss,fits_own_recordings
+Logistic Regression (C=1),0.625,0.6,1.2678,1.0
+Logistic Regression (C=10),0.625,0.575,1.4808,1.0
+Logistic Regression (C=100),0.625,0.575,1.7237,1.0
+Random Forest,0.625,0.55,0.986,1.0
