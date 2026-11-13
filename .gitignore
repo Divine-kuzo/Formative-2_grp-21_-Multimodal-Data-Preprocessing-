@@ -4,15 +4,6 @@ venv/
 __pycache__/
 *.py[cod]
 
-# Private voice recordings
-audio/
-
-# Extracted voice features
-data/
-
-# Trained voice model artifacts
-models/
-
 # Old generated package
 voice_verification_package.zip
 
@@ -21,3 +12,6 @@ voice_verification_package.zip
 
 # Notebook temporary files
 .ipynb_checkpoints/
+
+# Note: audio/, data/ and models/ are deliverables for this assignment,
+# so they are intentionally NOT ignored.

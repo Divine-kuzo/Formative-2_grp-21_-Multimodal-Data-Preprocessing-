@@ -36,7 +36,7 @@ sys.path.insert(0, str(ROOT))  # so "from src.xxx import ..." works from anywher
 
 # CONFIG  (edit this section)
 FACE_BACKEND = "real"    # "placeholder" | "real"
-VOICE_BACKEND = "auto"          # "auto" | "member3" | "fallback" | "placeholder"
+VOICE_BACKEND = "fallback"      # "auto" | "member3" | "fallback" | "placeholder"
 
 FACE_THRESHOLD = 0.60           # minimum confidence to accept a face
 VOICE_THRESHOLD = 0.60          # minimum confidence to accept a voice
