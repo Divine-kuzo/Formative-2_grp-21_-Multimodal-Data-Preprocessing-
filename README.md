@@ -19,10 +19,10 @@ face image ──> Face model ──(known member?)──> Voice model ──(sa
 
 | Member | Name | Responsibility |
 |---|---|---|
-| member_01 | _(add name)_ | Customer data cleaning, merge and EDA (`notebooks/customer_data_preprocessing.ipynb`) |
-| member_02 | _(add name)_ | Image collection, augmentation, features and face model (`notebooks/Image_processing.ipynb`, `src/image_utils.py`) |
+| member_01 |  divine | Customer data cleaning, merge and EDA (`notebooks/customer_data_preprocessing.ipynb`) |
+| member_02 | Kevine | Image collection, augmentation, features and face model (`notebooks/Image_processing.ipynb`, `src/image_utils.py`) |
 | member_03 | Constantine | Audio collection, augmentation, features and voice model (`notebooks/Group_21_Audio_Preprocessing_Voice_Verification.ipynb`, `src/audio_utils.py`) |
-| member_04 | _(add name)_ | Product recommendation model and CLI integration (`src/product_model.py`, `src/voice_fallback.py`, `app.py`) |
+| member_04 | Raquel | Product recommendation model and CLI integration (`src/product_model.py`, `src/voice_fallback.py`, `app.py`) |
 
 The full contribution sheet is linked in the report.
 
