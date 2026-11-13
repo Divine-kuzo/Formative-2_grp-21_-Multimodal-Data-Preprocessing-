@@ -34,3 +34,7 @@ time,face_file,voice_file,face_label,face_conf,voice_label,voice_conf,customer_i
 2026-11-13T21:38:31,images/unknown/non_member_1.png,audio/member_01/confirm_transaction.wav,unknown,0.34,,,,,DENIED_FACE
 2026-11-13T21:38:31,images/member_02/member_02_neutral.jpg,audio/member_03/confirm_transaction.wav,member_02,0.98,member_03,0.96,,,DENIED_VOICE
 2026-11-13T21:38:32,images/member_04/member_04_surprised.jpg,samples/unknown_voice.wav,member_04,0.99,member_02,0.51,,,DENIED_VOICE
+2026-11-13T21:44:06,images/member_01/member_01_neutral.jpg,audio/member_01/confirm_transaction.wav,member_01,1.00,member_01,0.96,A104,Sports,APPROVED
+2026-11-13T21:44:06,images/unknown/non_member_1.png,audio/member_01/confirm_transaction.wav,unknown,0.34,,,,,DENIED_FACE
+2026-11-13T21:44:07,images/member_02/member_02_neutral.jpg,audio/member_03/confirm_transaction.wav,member_02,0.98,member_03,0.96,,,DENIED_VOICE
+2026-11-13T21:44:07,images/member_04/member_04_surprised.jpg,samples/unknown_voice.wav,member_04,0.99,member_02,0.51,,,DENIED_VOICE
